@@ -20,6 +20,9 @@ import android.widget.Toast;
 import java.math.BigDecimal;
 import java.util.Stack;
 
+//Created by Shuayb Khan
+//Basic calculator app
+
 public class MainActivity extends AppCompatActivity {
 
     public static final String MULT = "\u00D7";
