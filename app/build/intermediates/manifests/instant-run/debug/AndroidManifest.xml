@@ -16,7 +16,9 @@
         android:largeHeap="true"
         android:supportsRtl="true"
         android:theme="@style/AppTheme" >
-        <activity android:name="com.shuaybprojects.calculate.MainActivity" >
+        <activity
+            android:name="com.shuaybprojects.calculate.MainActivity"
+            android:screenOrientation="portrait" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
