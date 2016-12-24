@@ -34,10 +34,9 @@ public class MainActivity extends AppCompatActivity {
     DisplayMetrics metrics = new DisplayMetrics();
     GridView gridButtons;
     EditText calcText;
-    String exp;
+    String exp, fullExp, currNum;
     Stack<String> bStack;
     Button delButton;
-    String currNum;
 
     public static int width;
     public static int height;
@@ -49,8 +48,9 @@ public class MainActivity extends AppCompatActivity {
         getWindowManager().getDefaultDisplay().getMetrics(metrics);
         width = metrics.widthPixels;
         height = metrics.heightPixels;
-        exp = "0";
-        currNum = "0";
+        exp = "";
+        currNum = "#";
+        fullExp = "0";
         bStack = new Stack();
 
         // Hide the status bar.
@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
         calcText.setInputType(InputType.TYPE_NULL);
         calcText.setTextIsSelectable(true);
 
-        calcText.setText(exp);
+        calcText.setText(fullExp);
 
         gridButtons = (GridView) findViewById(R.id.buttonGrid);
         gridButtons.setAdapter(new GridAdapter(this));
@@ -107,10 +107,11 @@ public class MainActivity extends AppCompatActivity {
         switch(i) {
             case 0:
                 //clear
-                exp = "0";
-                currNum = "0";
+                exp = "";
+                currNum = "#";
+                fullExp = "0";
                 bStack.clear();
-                calcText.setText(exp);
+                calcText.setText(fullExp);
                 break;
             case 1:
                 //brackets
@@ -186,6 +187,8 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case 19:
                 //equals
+                currNum = "#";
+                exp = "";
                 evaluate();
                 bStack.clear();
                 break;
@@ -193,128 +196,207 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void onClickDelButton() {
-        if (exp.length() == 1) {
-            exp = "0";
-            currNum = "0";
+        if (currNum.equals("#") && exp.equals("")) {
+            //No further back
         } else {
-            exp = exp.substring(0, exp.length()-1);
-            if (currNum.length() > 0) {
-                currNum = currNum.substring(0, currNum.length() - 1);
+            if (currNum.equals("#")) {
+                if (exp.length() > 1) {
+                    if (exp.endsWith("(")) {
+                        bStack.pop();
+                    } else if (exp.endsWith(")")) {
+                        bStack.push("(");
+                    }
+                    if (exp.charAt(exp.length()-2) == 'n') {
+                        exp = exp.substring(0, exp.length()-2);
+                    } else {
+                        exp = exp.substring(0, exp.length()-1);
+                    }
+                    if (endsWithNum(exp) || exp.endsWith(".")) {
+                        int numStartInd = 0;
+                        for (int i = exp.length() - 1; i > 0; i--) {
+                            if (exp.charAt(i) != 'n' && exp.charAt(i) != '.' && !endsWithNum("" + exp.charAt(i)) ) {
+                                numStartInd = i+1;
+                                break;
+                            }
+                        }
+                        currNum = exp.substring(numStartInd);
+                        exp = exp.substring(0, numStartInd);
+                    }
+                } else {
+                    if (exp.endsWith("(")) {
+                        bStack.pop();
+                    } else if (exp.endsWith(")")) {
+                        bStack.push("(");
+                    }
+                    exp = "";
+                }
+            } else {
+                if (currNum.length() > 1) {
+                    if (currNum.charAt(currNum.length()-2) == 'n') {
+                        currNum = "#";
+                    } else {
+                        currNum = currNum.substring(0, currNum.length()-1);
+                        if (currNum.equals("")) {
+                            currNum = "#";
+                        }
+                    }
+                } else {
+                    currNum = "#";
+                }
             }
         }
-        calcText.setText(exp.replaceAll("n", "-"));
+        System.out.println("exp = " + exp + ", currNum = " + currNum);
+        updateDisplay();
     }
 
     //Append and validate
     void append(String val) {
-        if (exp.length() < 30) {
-            if (isOperator(val)) {
-                if (!exp.endsWith("+") && !exp.endsWith("-") && !exp.endsWith(MULT) && !exp.endsWith(DIV)) {
-                    exp = exp + val;
-                    currNum = "";
-                }
-            }
-            if (val.matches("[0-9]")){
-                if (exp.equals("0")) {
-                    exp = val;
+        //For digits
+        if (val.matches("[0-9]")) {
+            if (currNum.equals("#")) {
+                if (exp.endsWith(")") || exp.endsWith("%")) {
+                    Toast toast = Toast.makeText(this, "Invalid format", Toast.LENGTH_SHORT);
+                    toast.show();
+                } else {
                     currNum = val;
-                } else {
-                    if (exp.matches(REGEX_ANYTHANG + "[.\\d]{15}")) {
-                        // Toast 15 digits reached
-                        Toast toast = Toast.makeText(this, "Maximum 15 digits reached", Toast.LENGTH_SHORT);
-                        toast.show();
-                    } else if (exp.matches(REGEX_ANYTHANG + "[.][0-9]{10}")) {
-                        Toast toast = Toast.makeText(this, "Maximum 10 decimal points reached", Toast.LENGTH_SHORT);
-                        toast.show();
-                    } else {
-                        exp = exp + val;
-                        currNum = currNum + val;
-                    }
                 }
-            }
-            if (val.equals("bracket")) {
-                if (exp.equals("0")) {
-                    exp = "(";
-                    currNum = "";
-                    bStack.push("(");
-                } else {
-                    if (isOperator(lastChar(exp)) || exp.endsWith("(")) {
-                        exp = exp + "(";
-                        currNum = "";
-                        bStack.push("(");
-                    }
-                    if (lastChar(exp).matches("[0-9]") || exp.endsWith(".") || exp.endsWith(")")) {
-                        if (!bStack.isEmpty()) {
-                            exp = exp + ")";
-                            currNum = "";
-                            bStack.pop();
+            } else {
+                if (currNum.length() < 10) {
+                    if (!(currNum.equals("0") && val.equals("0"))) {
+                        if (currNum.equals("0")) {
+                            currNum = val;
                         } else {
-                            exp = exp + MULT + "(";
-                            currNum = "";
-                            bStack.push("(");
+                            currNum = currNum + val;
                         }
                     }
-                }
-            }
-            if (val.equals(".")) {
-                if (exp.matches(REGEX_ANYTHANG + "[\\d]*[.][\\d]*")) {
-                    Toast toast = Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT);
+                } else {
+                    Toast toast = Toast.makeText(this, "Maximum 10 digits reached", Toast.LENGTH_SHORT);
                     toast.show();
-                } else if (exp.equals("0")) {
-                    exp = "0.";
-                    currNum = "0.";
-                } else if (exp.matches(REGEX_ANYTHANG + REGEX_ANY_EXCEPT_NUM + "[\\d]{1,14}")) {
-                    exp = exp + ".";
-                    currNum = currNum + ".";
-                } else if (exp.matches("[\\d]{1,14}")) {
-                    exp = exp + ".";
-                    currNum = currNum + ".";
                 }
             }
-            if (val.equals("%")) {
-                if (exp.matches(REGEX_ANYTHANG + "[)\\d]+")) {
-                    exp = exp + "%";
-                    if (!exp.endsWith(")")) {
-                        currNum = currNum + "%";
+        }
+        //For decimal points
+        if (val.equals(".")) {
+            if (currNum.equals("#")) {
+                if (exp.endsWith(")") || exp.endsWith("%")) {
+                    Toast toast = Toast.makeText(this, "Invalid format", Toast.LENGTH_SHORT);
+                    toast.show();
+                } else {
+                    currNum = "0.";
+                }
+            } else {
+                if (currNum.length() < 10) {
+                    if (currNum.contains(".")) {
+                        Toast toast = Toast.makeText(this, "Invalid format", Toast.LENGTH_SHORT);
+                        toast.show();
+                    } else {
+                        currNum = currNum + ".";
                     }
                 } else {
-                    Toast toast = Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT);
+                    Toast toast = Toast.makeText(this, "Maximum 10 digits reached", Toast.LENGTH_SHORT);
                     toast.show();
                 }
             }
-            if (val.equals("n")) {
-                if (exp.equals("0")) {
-                    exp = "n0";
-                    currNum = "n0";
-                } else if (exp.endsWith("+") || exp.endsWith("-") || exp.endsWith(MULT) || exp.endsWith(DIV) || exp.endsWith("(")){
-                    exp = exp + "n";
-                    currNum = "n";
-                } else if (currNum.equals("n")) {
-                    exp = exp.substring(0, exp.length()-1);
-                    currNum = "";
-                } else if (currNum.length() > 0) {
-                    if (currNum.charAt(0) == 'n') {
-                        exp = exp.substring(0, exp.length() - currNum.length());
-                        currNum = currNum.substring(1);
-                        exp = exp + currNum;
+        }
+        //For negative sign
+        if (val.equals("n")) {
+            if (currNum.equals("#") || currNum.equals("0")) {
+                //What to do if negative pressed and no number input?
+            } else {
+                if (currNum.charAt(0) == 'n') {
+                    currNum = currNum.substring(1);
+                } else {
+                    currNum = "n" + currNum;
+                }
+            }
+        }
+        //For binary operators
+        if (val.equals("+") || val.equals("-") || val.equals(MULT) || val.equals(DIV)) {
+            if (currNum.equals("#") && exp.equals("")) {
+                exp = "0" + val;
+            } else {
+                if (currNum.equals("#")) {
+                    if (exp.endsWith(")") || exp.endsWith("%")) {
+                        exp = exp + val;
                     } else {
-                        exp = exp.substring(0, exp.length() - currNum.length());
-                        currNum = "n" + currNum;
-                        exp = exp + currNum;
+                        Toast toast = Toast.makeText(this, "Invalid format", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                } else {
+                    exp = exp + currNum + val;
+                    currNum = "#";
+                }
+            }
+        }
+        //For percent sign
+        if (val.equals("%")) {
+            if (currNum.equals("#") && exp.equals("")) {
+                exp = "0%";
+            } else {
+                if (currNum.equals("#")) {
+                    if (exp.endsWith(")")) {
+                        exp = exp + val;
+                    } else {
+                        Toast toast = Toast.makeText(this, "Invalid format", Toast.LENGTH_SHORT);
+                        toast.show();
+                    }
+                } else {
+                    exp = exp + currNum + val;
+                    currNum = "#";
+                }
+            }
+        }
+        //For brackets
+        if (val.equals("bracket")) {
+            if (currNum.equals("#") && exp.equals("")) {
+                exp = "(";
+                bStack.push("(");
+            } else {
+                if (currNum.equals("#")) {
+                    if (exp.endsWith("%") || exp.endsWith(")")) {
+                        if (bStack.isEmpty()) {
+                            exp = exp + MULT + "(";
+                            bStack.push("(");
+                        } else {
+                            exp = exp + ")";
+                            bStack.pop();
+                        }
+                    } else {
+                        exp = exp + "(";
+                        bStack.push("(");
+                    }
+                } else {
+                    exp = exp + currNum;
+                    currNum = "#";
+                    if (bStack.isEmpty()) {
+                        exp = exp + MULT + "(";
+                        bStack.push("(");
+                    } else {
+                        exp = exp + ")";
+                        bStack.pop();
                     }
                 }
             }
         }
-        calcText.setText(exp.replaceAll("n", "-"));
+
+        updateDisplay();
     }
 
-    //Returns the last character in val as a String
-    String lastChar (String val) {
-        return "" + val.charAt(val.length()-1);
+    void updateDisplay() {
+        if (currNum.equals("#") && exp.equals("")){
+            fullExp = "0";
+        } else {
+            if (currNum.equals("#")) {
+                fullExp = exp;
+            } else {
+                fullExp = exp + currNum;
+            }
+        }
+        calcText.setText(fullExp.replaceAll("n", "-"));
     }
-    //Returns true if val is an operator
-    boolean isOperator(String val) {
-        if (val.equals("+") || val.equals("-") || val.equals(MULT) || val.equals(DIV)) {
+
+    boolean endsWithNum(String str) {
+        if (str.charAt(str.length() - 1) >= '0' && str.charAt(str.length()-1) <= '9') {
             return true;
         }
         return false;
@@ -323,12 +405,13 @@ public class MainActivity extends AppCompatActivity {
     void evaluate() {
         //First close all the brackets if there are any still open
         while (!bStack.isEmpty()) {
-            exp = exp + ")";
+            fullExp = fullExp + ")";
             bStack.pop();
         }
         try {
-            exp = BigDecimal.valueOf(Double.parseDouble(CalcMath.solve(exp))).toPlainString();
-            calcText.setText(exp);
+            fullExp = BigDecimal.valueOf(Double.parseDouble(CalcMath.solve(fullExp))).toPlainString();
+            calcText.setText(fullExp);
+            currNum = fullExp;
         } catch (Exception e) {
             System.out.println("ERROR: " + e.getMessage());
             if (e.getMessage().endsWith("zero")) {
@@ -336,8 +419,6 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 calcText.setText("SYNTAX ERROR");
             }
-            exp = "0";
-            currNum = "0";
         }
     }
 }

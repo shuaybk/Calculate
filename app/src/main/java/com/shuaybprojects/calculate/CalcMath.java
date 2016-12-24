@@ -29,6 +29,9 @@ public class CalcMath {
         Stack<String> stack = new Stack();
         int sBrac, eBrac;
 
+        if (exp.equals("")){
+            return "ERROR";
+        }
         //Parse and solve brackets first
         while ((sBrac = exp.indexOf("(")) > -1) {
             stack.push("(");
